@@ -19,7 +19,7 @@ library
                      , Numeric.LinearAlgebra.Vector
                      , Numeric.LinearAlgebra.OrthoNormalBasis
   -- other-modules:       
-  build-depends:       base ==4.5.*
+  build-depends:       base >= 3 && < 5
                      , NumInstances == 1.*
   hs-source-dirs:      src
   ghc-options: -Wall -O2 -funbox-strict-fields
