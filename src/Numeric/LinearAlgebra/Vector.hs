@@ -1,4 +1,12 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Numeric.LinearAlgebra.Vector where
+
+import qualified Data.Vector.Generic.Mutable as M
+import qualified Data.Vector.Generic         as V
+import qualified Data.Vector.Unboxed         as U
+
+import Control.Monad ( liftM )
 
 data Vec4 a = Vec4 !a !a !a !a
   deriving (Read, Show, Eq, Ord)
@@ -145,3 +153,58 @@ unitVector v = v </ len v
 
 tripleProduct :: Floating a => Vec3 a -> Vec3 a -> Vec3 a -> a
 tripleProduct v1 v2 v3 = (v1 <%> v2) <.> v3
+
+-- Now for some unboxing magic
+newtype instance U.MVector s (Vec3 a) = MV_Vec3 (U.MVector s (a,a,a))
+newtype instance U.Vector    (Vec3 a) = V_Vec3  (U.Vector    (a,a,a))
+
+instance (RealFloat a, U.Unbox a) => U.Unbox (Vec3 a)
+
+instance (RealFloat a, U.Unbox a) => M.MVector U.MVector (Vec3 a) where
+  {-# INLINE basicLength #-}
+  {-# INLINE basicUnsafeSlice #-}
+  {-# INLINE basicOverlaps #-}
+  {-# INLINE basicUnsafeNew #-}
+  {-# INLINE basicUnsafeReplicate #-}
+  {-# INLINE basicUnsafeRead #-}
+  {-# INLINE basicUnsafeWrite #-}
+  {-# INLINE basicClear #-}
+  {-# INLINE basicSet #-}
+  {-# INLINE basicUnsafeCopy #-}
+  {-# INLINE basicUnsafeGrow #-}
+  basicLength (MV_Vec3 v) = M.basicLength v
+  basicUnsafeSlice i n (MV_Vec3 v) = MV_Vec3 $ M.basicUnsafeSlice i n v
+  basicOverlaps (MV_Vec3 v1) (MV_Vec3 v2) = M.basicOverlaps v1 v2
+  basicUnsafeNew n = MV_Vec3 `liftM` M.basicUnsafeNew n
+  basicUnsafeReplicate n (Vec3 x y z) = MV_Vec3 `liftM` M.basicUnsafeReplicate n (x,y,z)
+  basicUnsafeRead (MV_Vec3 v) i = vec3 `liftM` M.basicUnsafeRead v i
+    where vec3 (a,b,c) = Vec3 a b c
+  basicUnsafeWrite (MV_Vec3 v) i (Vec3 x y z) = M.basicUnsafeWrite v i (x,y,z)
+  basicClear (MV_Vec3 v) = M.basicClear v
+  basicSet (MV_Vec3 v) (Vec3 x y z) = M.basicSet v (x,y,z)
+  basicUnsafeCopy (MV_Vec3 v1) (MV_Vec3 v2) = M.basicUnsafeCopy v1 v2
+  basicUnsafeMove (MV_Vec3 v1) (MV_Vec3 v2) = M.basicUnsafeMove v1 v2
+  basicUnsafeGrow (MV_Vec3 v) n = MV_Vec3 `liftM` M.basicUnsafeGrow v n
+
+instance (RealFloat a, U.Unbox a) => V.Vector U.Vector (Vec3 a) where
+  {-# INLINE basicUnsafeFreeze #-}
+  {-# INLINE basicUnsafeThaw #-}
+  {-# INLINE basicLength #-}
+  {-# INLINE basicUnsafeSlice #-}
+  {-# INLINE basicUnsafeIndexM #-}
+  {-# INLINE elemseq #-}
+  basicUnsafeFreeze (MV_Vec3 v) = V_Vec3 `liftM` V.basicUnsafeFreeze v
+  basicUnsafeThaw (V_Vec3 v) = MV_Vec3 `liftM` V.basicUnsafeThaw v
+  basicLength (V_Vec3 v) = V.basicLength v
+  basicUnsafeSlice i n (V_Vec3 v) = V_Vec3 $ V.basicUnsafeSlice i n v
+  basicUnsafeIndexM (V_Vec3 v) i
+                = vec3 `liftM` V.basicUnsafeIndexM v i
+    where
+    vec3 (a,b,c) = Vec3 a b c
+  basicUnsafeCopy (MV_Vec3 mv) (V_Vec3 v)
+                = V.basicUnsafeCopy mv v
+  elemseq _ (Vec3 x y z) w =
+    V.elemseq (undefined :: U.Vector a) x
+      (V.elemseq (undefined :: U.Vector a) y
+        (V.elemseq (undefined :: U.Vector a) z w))
+--
