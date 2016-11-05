@@ -8,6 +8,8 @@ import qualified Data.Vector.Unboxed         as U
 
 import Control.Monad ( liftM )
 
+import Prelude hiding ((<*>))
+
 data Vec4 a = Vec4 !a !a !a !a
   deriving (Read, Show, Eq, Ord)
 data Vec3 a = Vec3 !a !a !a
